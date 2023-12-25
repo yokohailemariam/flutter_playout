@@ -12,8 +12,9 @@ class VideoPlayout extends StatefulWidget {
   final PlayerState desiredState;
   final bool showPlayerControls;
 
-  const VideoPlayout({Key key, this.desiredState, this.showPlayerControls})
-      : super(key: key);
+  const VideoPlayout(
+      {required this.desiredState, required this.showPlayerControls})
+      : super();
 
   @override
   _VideoPlayoutState createState() => _VideoPlayoutState();
@@ -21,7 +22,8 @@ class VideoPlayout extends StatefulWidget {
 
 class _VideoPlayoutState extends State<VideoPlayout>
     with PlayerObserver, MultiAudioSupport {
-  final String _url = null;
+  final String _url =
+      'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
   List<HLSManifestLanguage> _hlsLanguages = [];
 
   @override
@@ -31,7 +33,7 @@ class _VideoPlayoutState extends State<VideoPlayout>
   }
 
   Future<void> _getHLSManifestLanguages() async {
-    if (!Platform.isIOS && _url != null && _url.isNotEmpty) {
+    if (!Platform.isIOS && _url.isNotEmpty) {
       _hlsLanguages = await getManifestLanguages(_url);
       setState(() {});
     }
@@ -68,14 +70,11 @@ class _VideoPlayoutState extends State<VideoPlayout>
                     children: _hlsLanguages
                         .map((e) => MaterialButton(
                               child: Text(
-                                e.name,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .button
-                                    .copyWith(color: Colors.white),
+                                e.name ?? '',
+                                style: Theme.of(context).textTheme.bodySmall,
                               ),
                               onPressed: () {
-                                setPreferredAudioLanguage(e.code);
+                                setPreferredAudioLanguage(e.code ?? '');
                               },
                             ))
                         .toList(),
@@ -109,27 +108,27 @@ class _VideoPlayoutState extends State<VideoPlayout>
     super.onComplete();
   }
 
-  @override
-  void onTime(int position) {
-    // TODO: implement onTime
-    super.onTime(position);
-  }
+  // @override
+  // void onTime(int position) {
+  //   // TODO: implement onTime
+  //   super.onTime(position);
+  // }
 
-  @override
-  void onSeek(int position, double offset) {
-    // TODO: implement onSeek
-    super.onSeek(position, offset);
-  }
+  // @override
+  // void onSeek(int position, double offset) {
+  //   // TODO: implement onSeek
+  //   super.onSeek(position, offset);
+  // }
 
-  @override
-  void onDuration(int duration) {
-    // TODO: implement onDuration
-    super.onDuration(duration);
-  }
+  // @override
+  // void onDuration(int duration) {
+  //   // TODO: implement onDuration
+  //   super.onDuration(duration);
+  // }
 
-  @override
-  void onError(String error) {
-    // TODO: implement onError
-    super.onError(error);
-  }
+  // @override
+  // void onError(String error) {
+  //   // TODO: implement onError
+  //   super.onError(error);
+  // }
 }

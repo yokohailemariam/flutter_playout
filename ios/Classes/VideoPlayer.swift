@@ -14,6 +14,8 @@ import AVKit
 class VideoPlayerFactory: NSObject, FlutterPlatformViewFactory {
     
     var videoPlayer:VideoPlayer?
+
+    
     
     var registrar:FlutterPluginRegistrar?
     
@@ -43,26 +45,28 @@ class VideoPlayerFactory: NSObject, FlutterPlatformViewFactory {
         return self.videoPlayer!
     }
     
-    public func createArgsCodec() -> FlutterMessageCodec & NSObjectProtocol {
-        return FlutterJSONMessageCodec()
-    }
-    
+   
     public func applicationDidEnterBackground() {}
     
     public func applicationWillEnterForeground() {}
 }
 
-class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatformView {
+class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatformView, AVPictureInPictureControllerDelegate {
     
     static func register(with registrar: FlutterPluginRegistrar) { }
     
     /* view specific properties */
     var frame:CGRect
     var viewId:Int64
+
+    private var pipButton: UIButton?
+    var pipController: AVPictureInPictureController!
+    private var playerLayer: AVPlayerLayer!
+
     
     /* player properties */
     var player: FluterAVPlayer?
-    var playerViewController:AVPlayerViewController?
+    var playerViewController:AVPlayerViewController!
     
     /* player metadata */
     var url:String = ""
@@ -103,27 +107,39 @@ class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatfor
 
         let audioSession = AVAudioSession.sharedInstance()
         do {
-            try audioSession.setCategory(AVAudioSession.Category.playback)
-        } catch _ { }
+            try audioSession.setCategory(AVAudioSession.Category.playback, mode: .moviePlayback)
+        } catch _ { 
+            print("fail")
+        }
 
         setupEventChannel(viewId: viewId, messenger: messenger, instance: self)
 
         setupMethodChannel(viewId: viewId, messenger: messenger)
 
         /* data as JSON */
-        let parsedData = args as! [String: Any]
-
-        /* set incoming player properties */
-        self.url = parsedData["url"] as! String
-        self.autoPlay = parsedData["autoPlay"] as! Bool
-        self.loop = parsedData["loop"] as! Bool
-        self.title = parsedData["title"] as! String
-        self.subtitle = parsedData["subtitle"] as! String
-        self.isLiveStream = parsedData["isLiveStream"] as! Bool
-        self.showControls = parsedData["showControls"] as! Bool
-        self.position = parsedData["position"] as! Double
-
+        // let parsedData = args as! [String: Any]
+        if let parsedData = args as? [String: Any] {
+            /* set incoming player properties */
+            self.url = parsedData["url"] as? String ?? ""
+            self.autoPlay = parsedData["autoPlay"] as? Bool ?? true
+            self.loop = parsedData["loop"] as? Bool ?? false
+            self.title = parsedData["title"] as? String ?? ""
+            self.subtitle = parsedData["subtitle"] as? String ?? ""
+            self.isLiveStream = parsedData["isLiveStream"] as? Bool ?? false
+            self.showControls = parsedData["showControls"] as? Bool ?? false
+            self.position = parsedData["position"] as? Double ?? 0.0
         setupPlayer()
+        }
+        /* set incoming player properties */
+        // self.url = parsedData["url"] as! String
+        // self.autoPlay = parsedData["autoPlay"] as! Bool
+        // self.loop = parsedData["loop"] as! Bool
+        // self.title = parsedData["title"] as! String
+        // self.subtitle = parsedData["subtitle"] as! String
+        // self.isLiveStream = parsedData["isLiveStream"] as! Bool
+        // self.showControls = parsedData["showControls"] as! Bool
+        // self.position = parsedData["position"] as! Double
+
     }
 
     /* set Flutter event channel */
@@ -133,6 +149,41 @@ class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatfor
         instance.eventChannel = FlutterEventChannel(name: "tv.mta/NativeVideoPlayerEventChannel_" + String(viewId), binaryMessenger: messenger, codec: FlutterJSONMethodCodec.sharedInstance())
 
         instance.eventChannel!.setStreamHandler(instance)
+    }
+
+     public func createArgsCodec() -> FlutterMessageCodec & NSObjectProtocol {
+        return FlutterJSONMessageCodec()
+    }
+
+    private func setupPiPButton() {
+        pipController = AVPictureInPictureController.init(playerLayer: playerLayer)!
+        pipController.delegate = self
+        // 隐藏播放按钮、快进快退按钮
+        pipController.setValue(1, forKey: "controlsStyle")
+
+        pipButton = UIButton(type: .system)
+        pipButton?.setTitle("PiP", for: .normal)
+        pipButton?.addTarget(self, action: #selector(togglePiP), for: .touchUpInside)
+        pipButton?.frame = CGRect(x: 10, y: 10, width: 50, height: 30) // Adjust the frame as needed
+        self.playerViewController?.view.addSubview(pipButton!)
+    }
+        
+    @objc private func togglePiP() {
+        if #available(iOS 14.0, *) {
+            if pipController.isPictureInPictureActive {
+            pipController.stopPictureInPicture()
+        }else {
+            pipController.startPictureInPicture()
+            // countDown()
+        }
+        }
+        //     if let playerViewController = self.playerViewController {
+        //         playerViewController.player?.allowsPictureInPicturePlayback = true
+        //         playerViewController.presentPictureInPicture(animated: true)
+        //     }
+        // } else {
+        //     // PiP is not supported on versions below iOS 14
+        // }
     }
 
     /* set Flutter method channel */
@@ -288,14 +339,23 @@ class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatfor
             let viewController = (UIApplication.shared.delegate?.window??.rootViewController)!
             viewController.addChild(self.playerViewController!)
             
+             setupPiPButton()
         }
     }
     
     /* create player view */
-    func view() -> UIView {
-        /* return player view controller's view */
-        return self.playerViewController!.view
-    }
+    // func view() -> UIView {
+    //     /* return player view controller's view */
+    //     // return self.playerViewController!.view
+
+    //      if let playerView = self.playerViewController?.view {
+    //     return playerView
+    // } else {
+    //     // Handle the case where playerViewController or its view is nil
+    //     // For example, return a default UIView or log an error
+    //     fatalError("Player view controller or its view is nil.")
+    // }
+    // }
     
     private func onMediaChanged() {
         if let p = self.player {
